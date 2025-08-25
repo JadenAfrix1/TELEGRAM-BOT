@@ -1,67 +1,71 @@
 const fs = require("fs");
 const path = require("path");
 
-const dataDir = path.resolve(__dirname, "../../data");
-if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
+const adminsFile = path.join(__dirname, "../../data/admins.json");
+const usersFile = path.join(__dirname, "../../data/users.json");
+const groupsFile = path.join(__dirname, "../../data/groups.json");
 
-const readJSON = (file) => {
-  const filePath = path.join(dataDir, file);
-  if (!fs.existsSync(filePath)) return {};
+// ===== Admins =====
+const getAdmins = () => {
   try {
-    return JSON.parse(fs.readFileSync(filePath, "utf8"));
-  } catch (err) {
+    return JSON.parse(fs.readFileSync(adminsFile, "utf8") || "{}");
+  } catch {
     return {};
   }
 };
 
-const writeJSON = (file, data) => {
-  const filePath = path.join(dataDir, file);
-  fs.writeFileSync(filePath, JSON.stringify(data, null, 2), "utf8");
+const saveAdmins = (data) => {
+  fs.writeFileSync(adminsFile, JSON.stringify(data, null, 2));
 };
 
-// Users
-const getUsers = () => readJSON("users.json");
-const saveUsers = (data) => writeJSON("users.json", data);
+// ===== Users =====
+const getUsers = () => {
+  try {
+    return JSON.parse(fs.readFileSync(usersFile, "utf8") || "{}");
+  } catch {
+    return {};
+  }
+};
 
-// Admins
-const getAdmins = () => readJSON("admins.json");
-const saveAdmins = (data) => writeJSON("admins.json", data);
-
-// Groups
-const getGroups = () => readJSON("groups.json");
-const saveGroups = (data) => writeJSON("groups.json", data);
-
-// User management
-const addUser = (userId) => {
-  const users = getUsers();
-  if (!users[userId]) users[userId] = { warnings: 0, boosts: 0, banned: false };
-  saveUsers(users);
+const saveUsers = (data) => {
+  fs.writeFileSync(usersFile, JSON.stringify(data, null, 2));
 };
 
 const warnUser = (userId) => {
   const users = getUsers();
-  if (!users[userId]) addUser(userId);
+  if (!users[userId]) users[userId] = { warnings: 0, boosts: 0 };
   users[userId].warnings += 1;
   saveUsers(users);
   return users[userId].warnings;
 };
 
-const banUser = (userId, duration = 24 * 60) => {
+const banUser = (userId, minutes) => {
   const users = getUsers();
-  if (!users[userId]) addUser(userId);
-  users[userId].banned = true;
+  if (!users[userId]) users[userId] = { warnings: 0, boosts: 0 };
+  users[userId].bannedUntil = Date.now() + minutes * 60 * 1000;
   saveUsers(users);
-  // Optional: implement auto-unban after duration
+};
+
+// ===== Groups =====
+const getGroups = () => {
+  try {
+    return JSON.parse(fs.readFileSync(groupsFile, "utf8") || "{}");
+  } catch {
+    return {};
+  }
+};
+
+const saveGroups = (data) => {
+  fs.writeFileSync(groupsFile, JSON.stringify(data, null, 2));
 };
 
 module.exports = {
-  getUsers,
-  saveUsers,
   getAdmins,
   saveAdmins,
-  getGroups,
-  saveGroups,
-  addUser,
+  getUsers,
+  saveUsers,
   warnUser,
   banUser,
+  getGroups,
+  saveGroups,
 };
