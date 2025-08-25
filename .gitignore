@@ -1,0 +1,23 @@
+# Node modules
+node_modules/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+bot.log
+
+# Deployment files with secrets (optional)
+deployments/render.yaml
+
+# Vercel build cache
+.vercel/
+
+# Mac / Linux system files
+.DS_Store
+Thumbs.db

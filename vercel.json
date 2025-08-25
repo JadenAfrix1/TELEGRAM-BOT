@@ -1,0 +1,22 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "server.js",
+      "use": "@vercel/node"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "server.js"
+    }
+  ],
+  "env": {
+    "BOT_TOKEN": "@bot_token",
+    "OWNER_ID": "@owner_id",
+    "CHANNEL_ID": "@channel_id",
+    "QWEN_API_KEY": "@qwen_api_key",
+    "PRINCE_API_KEY": "@prince_api_key"
+  }
+}

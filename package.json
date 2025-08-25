@@ -1,0 +1,29 @@
+{
+  "name": "j.afrix-codez",
+  "version": "1.0.0",
+  "description": "Telegram bot built with Node.js for NexoraTech",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "keywords": [
+    "telegram-bot",
+    "nodejs",
+    "nexoratech"
+  ],
+  "author": "J.AFRIX-CODEZ",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.7.2",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "node-telegram-bot-api": "^0.66.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.4"
+  },
+  "engines": {
+    "node": ">=18.x"
+  }
+}

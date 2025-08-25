@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: nexoratech-bot
+    env: node
+    plan: free
+    buildCommand: "npm install"
+    startCommand: "node server.js"
+    autoDeploy: true
+    envVars:
+      - key: BOT_TOKEN
+        fromSecret: BOT_TOKEN
+      - key: OWNER_ID
+        fromSecret: OWNER_ID
+      - key: CHANNEL_ID
+        fromSecret: CHANNEL_ID
+      - key: QWEN_API_KEY
+        fromSecret: QWEN_API_KEY
+      - key: PRINCE_API_KEY
+        fromSecret: PRINCE_API_KEY
