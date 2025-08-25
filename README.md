@@ -42,7 +42,7 @@
   <a href="https://whatsapp.com/channel/0029VaGCZ8D5pU1Y5uXc4I2p" target="_blank">
     <img src="https://img.shields.io/badge/WhatsApp-Channel-25D366?style=for-the-badge&logo=whatsapp" alt="WhatsApp Channel" />
   </a>
-  <a href="https://www.youtube.com/@nexoratech" target="_blank">
+  <a href="https://www.youtube.com/@nexoratechn" target="_blank">
     <img src="https://img.shields.io/badge/YouTube-Subscribe-FF0000?style=for-the-badge&logo=youtube" alt="YouTube Subscribe" />
   </a>
 </div>
