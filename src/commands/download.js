@@ -1,67 +1,96 @@
-const { downloadMedia } = require("../utils/api");
-const { log, error } = require("../utils/logger");
-const { apis } = require("../config/config");
-const path = require("path");
-const fs = require("fs");
+const { apkDownload, playVideo, gitClone, ytMp4 } = require("../utils/api");
 
-const handleDownloadCommand = async (bot, msg, command) => {
-  const chatId = msg.chat.id;
-  const query = msg.text.split(" ").slice(1).join(" ");
-  
-  if (!query) {
-    bot.sendMessage(chatId, `Please provide a query or link. Example:\n${command} <query/link>`);
-    return;
+/**
+ * Register all download commands with retry logic.
+ */
+function registerDownloadCommands(bot) {
+  // Helper function for retries
+  async function withRetry(task, retries = 3) {
+    for (let attempt = 1; attempt <= retries; attempt++) {
+      try {
+        return await task();
+      } catch (error) {
+        console.error(`❌ Attempt ${attempt} failed:`, error.message);
+        if (attempt === retries) throw error;
+      }
+    }
   }
   
-  let apiUrl;
-  switch (command) {
-    case "/apk":
-      apiUrl = `${apis.apk}${encodeURIComponent(query)}`;
-      break;
-    case "/play":
-      apiUrl = `${apis.play}${encodeURIComponent(query)}`;
-      break;
-    case "/video":
-      apiUrl = `${apis.video}${encodeURIComponent(query)}`;
-      break;
-    case "/gitclone":
-      apiUrl = `${apis.gitclone}${encodeURIComponent(query)}`;
-      break;
-    case "/ytmp4":
-      apiUrl = `${apis.ytmp4}${encodeURIComponent(query)}`;
-      break;
-    default:
-      bot.sendMessage(chatId, "Unknown download command.");
-      return;
-  }
-  
-  try {
-    bot.sendMessage(chatId, "Downloading your file... ⏳");
+  /**
+   * /apk <app name>
+   */
+  bot.onText(/\/apk (.+)/, async (msg, match) => {
+    const chatId = msg.chat.id;
+    const appName = match[1];
     
-    // Generate temp filename
-    const filename = `${command.replace("/", "")}_${Date.now()}.mp4`;
-    const filePath = await downloadMedia(apiUrl, filename);
+    bot.sendMessage(chatId, `⏳ Downloading APK for *${appName}*...`, { parse_mode: "Markdown" });
     
-    // Send file as media
-    await bot.sendDocument(chatId, fs.createReadStream(filePath));
-    
-    // Cleanup
-    fs.unlinkSync(filePath);
-    
-    log(`Download command ${command} used by ${msg.from.username || msg.from.first_name}`);
-  } catch (err) {
-    error(`Failed download command ${command}: ${err.message}`);
-    bot.sendMessage(chatId, `Error downloading file: ${err.message}`);
-  }
-};
-
-// Export function to attach download commands
-const registerDownloadCommands = (bot) => {
-  ["/apk", "/play", "/video", "/gitclone", "/ytmp4"].forEach((cmd) => {
-    bot.onText(new RegExp(`^\\${cmd}`), (msg) => handleDownloadCommand(bot, msg, cmd));
+    try {
+      const buffer = await withRetry(() => apkDownload(appName));
+      if (!buffer) return bot.sendMessage(chatId, "❌ Failed to fetch APK.");
+      
+      await bot.sendDocument(chatId, buffer, {}, { filename: `${appName}.apk` });
+    } catch (err) {
+      bot.sendMessage(chatId, "⚠️ APK download failed after retries.");
+    }
   });
-};
+  
+  /**
+   * /play <yt url>
+   */
+  bot.onText(/\/play (.+)/, async (msg, match) => {
+    const chatId = msg.chat.id;
+    const ytUrl = match[1];
+    
+    bot.sendMessage(chatId, `🎬 Fetching video from: ${ytUrl}`);
+    
+    try {
+      const buffer = await withRetry(() => playVideo(ytUrl));
+      if (!buffer) return bot.sendMessage(chatId, "❌ Failed to fetch video.");
+      
+      await bot.sendVideo(chatId, buffer, { caption: `🎥 Here’s your video: ${ytUrl}` });
+    } catch (err) {
+      bot.sendMessage(chatId, "⚠️ Video fetch failed after retries.");
+    }
+  });
+  
+  /**
+   * /gitclone <repo url>
+   */
+  bot.onText(/\/gitclone (.+)/, async (msg, match) => {
+    const chatId = msg.chat.id;
+    const repoUrl = match[1];
+    
+    bot.sendMessage(chatId, `📦 Cloning repository: ${repoUrl}`);
+    
+    try {
+      const buffer = await withRetry(() => gitClone(repoUrl));
+      if (!buffer) return bot.sendMessage(chatId, "❌ Git clone failed.");
+      
+      await bot.sendDocument(chatId, buffer, {}, { filename: "repository.zip" });
+    } catch (err) {
+      bot.sendMessage(chatId, "⚠️ Git clone failed after retries.");
+    }
+  });
+  
+  /**
+   * /ytmp4 <yt url>
+   */
+  bot.onText(/\/ytmp4 (.+)/, async (msg, match) => {
+    const chatId = msg.chat.id;
+    const ytUrl = match[1];
+    
+    bot.sendMessage(chatId, `🎥 Downloading YouTube MP4: ${ytUrl}`);
+    
+    try {
+      const buffer = await withRetry(() => ytMp4(ytUrl));
+      if (!buffer) return bot.sendMessage(chatId, "❌ Failed to fetch video.");
+      
+      await bot.sendVideo(chatId, buffer, { caption: `📥 YouTube video downloaded successfully.` });
+    } catch (err) {
+      bot.sendMessage(chatId, "⚠️ YT MP4 failed after retries.");
+    }
+  });
+}
 
-module.exports = {
-  registerDownloadCommands,
-};
+module.exports = { registerDownloadCommands };

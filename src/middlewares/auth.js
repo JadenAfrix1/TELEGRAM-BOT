@@ -1,4 +1,8 @@
 const { CHANNEL_ID } = process.env;
+const { log } = require("../utils/logger");
+
+// Banner image (replace with your hosted image URL)
+const BANNER_IMAGE_URL = "https://i.ibb.co/6NRV0fL/nexora-banner.jpg";
 
 /**
  * Middleware to check if a user is a member of a specific channel
@@ -19,8 +23,8 @@ const verifyChannelMembership = async (bot, msg) => {
     }
     return true;
   } catch (err) {
-    // If error occurs (e.g., user not found), consider not verified
-    return false;
+    log(`❌ Failed to verify membership for ${userId}: ${err.message}`);
+    return false; // Treat errors as "not verified"
   }
 };
 
@@ -33,24 +37,23 @@ const requireChannelMembership = (bot, callback) => async (msg) => {
   const isMember = await verifyChannelMembership(bot, msg);
   
   if (!isMember) {
-    bot.sendMessage(
-      msg.chat.id,
-      "🚫 You cannot use the bot yet. Please join our Telegram channel first.",
-      {
-        reply_markup: {
-          inline_keyboard: [
-            [
-              { text: "Join Telegram Channel", url: `https://t.me/nexoratechn` },
-              { text: "Join WhatsApp Channel", url: `https://chat.whatsapp.com/0029Vb6K4nw96H4LOMaOLF22` },
-            ],
+    // First send banner image
+    await bot.sendPhoto(msg.chat.id, BANNER_IMAGE_URL, {
+      caption: "🚫 You cannot use the bot yet. Please join our channels below 👇",
+      reply_markup: {
+        inline_keyboard: [
+          [
+            { text: "Join Telegram Channel", url: `https://t.me/nexoratechn` },
+            { text: "Join WhatsApp Channel", url: `https://chat.whatsapp.com/0029Vb6K4nw96H4LOMaOLF22` },
           ],
-        },
-      }
-    );
+        ],
+      },
+    });
     return;
   }
   
-  // If verified, proceed to the original command
+  // If verified → show banner then execute command
+  await bot.sendPhoto(msg.chat.id, BANNER_IMAGE_URL);
   callback(msg);
 };
 

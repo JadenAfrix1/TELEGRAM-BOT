@@ -1,5 +1,6 @@
 const { getAdmins } = require("../services/database");
 const { ownerId } = require("../config/config");
+const { log } = require("../utils/logger");
 
 /**
  * Check if a user is the bot owner
@@ -17,7 +18,7 @@ const isOwner = (userId) => {
  */
 const isAdmin = (userId) => {
   const admins = getAdmins();
-  return isOwner(userId) || admins[userId];
+  return isOwner(userId) || Boolean(admins[userId]);
 };
 
 /**
@@ -26,8 +27,12 @@ const isAdmin = (userId) => {
  * @param {Function} callback - Command handler
  */
 const adminOnly = (bot, callback) => (msg) => {
-  if (!isAdmin(msg.from.id)) {
-    bot.sendMessage(msg.chat.id, "🚫 You do not have permission to use this command.");
+  const userId = msg.from.id;
+  if (!isAdmin(userId)) {
+    bot.sendMessage(msg.chat.id, "🚫 *Access Denied*: You are not an admin.", {
+      parse_mode: "Markdown",
+    });
+    log(`❌ Non-admin (${userId}) tried to use an admin-only command.`);
     return;
   }
   callback(msg);
@@ -39,8 +44,12 @@ const adminOnly = (bot, callback) => (msg) => {
  * @param {Function} callback - Command handler
  */
 const ownerOnly = (bot, callback) => (msg) => {
-  if (!isOwner(msg.from.id)) {
-    bot.sendMessage(msg.chat.id, "🚫 Only the bot owner can use this command.");
+  const userId = msg.from.id;
+  if (!isOwner(userId)) {
+    bot.sendMessage(msg.chat.id, "🚫 *Restricted*: Only the bot owner can use this command.", {
+      parse_mode: "Markdown",
+    });
+    log(`❌ Non-owner (${userId}) tried to use an owner-only command.`);
     return;
   }
   callback(msg);
