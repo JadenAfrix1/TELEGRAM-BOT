@@ -1,77 +1,86 @@
+// src/commands/admin.js
 const { adminOnly, ownerOnly } = require("../middlewares/permissions");
 const { getAdmins, saveAdmins, getUsers } = require("../services/database");
+const { getBanner } = require("../utils/banner");
 const { log, error } = require("../utils/logger");
 
 /**
- * Register admin commands
- * @param {TelegramBot} bot
+ * registerAdminCommands(bot)
  */
 function registerAdminCommands(bot) {
-  // Broadcast with banner + buttons
-  bot.onText(/\/broadcast (.+)/, adminOnly(bot, async (msg) => {
+  // /broadcast <message> - admins & owner can use
+  bot.onText(/^\/broadcast (.+)/, adminOnly(bot, async (msg, match) => {
     const chatId = msg.chat.id;
-    const text = msg.text.replace("/broadcast ", "").trim();
+    const fromId = msg.from.id;
+    const text = match && match[1] ? match[1].trim() : "";
     
     if (!text) {
-      bot.sendMessage(chatId, "⚠️ Please provide a broadcast message.");
+      bot.sendMessage(chatId, "⚠️ Please provide a message to broadcast.").catch(() => {});
       return;
     }
     
     const users = getUsers();
-    let count = 0;
-    
-    const banner = `📢 *Broadcast Message*\n\n${text}\n\n━━━━━━━━━━━━━━`;
-    
+    const banner = getBanner();
     const options = {
       parse_mode: "Markdown",
       reply_markup: {
         inline_keyboard: [
-          [{ text: "📌 Join Channel", url: "https://t.me/YourChannel" }],
-          [{ text: "💬 Support Group", url: "https://t.me/YourSupport" }]
+          [{ text: "📢 Join Channel", url: process.env.TELEGRAM_CHANNEL_URL || `https://t.me/${(process.env.CHANNEL_ID||"nexoratechn").toString().replace(/^@/,'')}` }],
+          [{ text: "💬 WhatsApp Channel", url: process.env.WHATSAPP_CHANNEL_URL || "https://chat.whatsapp.com/0029Vb6K4nw96H4LOMaOLF22" }]
         ]
       }
     };
     
-    for (const userId of Object.keys(users)) {
+    let sent = 0;
+    for (const uid of Object.keys(users || {})) {
       try {
-        await bot.sendMessage(userId, banner, options);
-        count++;
+        // try sending banner + message as photo caption for better appearance
+        await bot.sendPhoto(uid, banner.photo, { caption: `📢 *Broadcast*\n\n${text}`, ...options }).catch(async () => {
+          // fallback to text if photo fails
+          await bot.sendMessage(uid, `📢 *Broadcast*\n\n${text}`, options).catch(() => {});
+        });
+        sent++;
       } catch (err) {
-        error(`Failed broadcast to ${userId}: ${err.message}`);
+        error(`broadcast to ${uid} failed: ${err.message || err}`);
       }
     }
     
-    bot.sendMessage(chatId, `✅ Broadcast delivered to *${count}* users.`, { parse_mode: "Markdown" });
-    log(`Broadcast sent by ${msg.from.id} to ${count} users.`);
+    bot.sendMessage(chatId, `✅ Broadcast delivered to ${sent} users.`, { parse_mode: "Markdown" }).catch(() => {});
+    log(`Broadcast by ${fromId} -> ${sent} users`);
   }));
   
-  // Add new admin (owner only)
-  bot.onText(/\/new-admin (\d+)/, ownerOnly(bot, (msg, match) => {
+  // /new-admin <userId> - owner only
+  bot.onText(/^\/new-admin (\d+)/, ownerOnly(bot, (msg, match) => {
+    const chatId = msg.chat.id;
     const newAdminId = match[1];
     const admins = getAdmins();
     admins[newAdminId] = true;
     saveAdmins(admins);
-    bot.sendMessage(msg.chat.id, `🛡️ User *${newAdminId}* is now an admin.`, { parse_mode: "Markdown" });
+    bot.sendMessage(chatId, `✅ User \`${newAdminId}\` added as admin.`, { parse_mode: "Markdown" }).catch(() => {});
+    log(`Owner ${msg.from.id} added admin ${newAdminId}`);
   }));
   
-  // Remove admin (owner only)
-  bot.onText(/\/remove-admin (\d+)/, ownerOnly(bot, (msg, match) => {
+  // /remove-admin <userId> - owner only
+  bot.onText(/^\/remove-admin (\d+)/, ownerOnly(bot, (msg, match) => {
+    const chatId = msg.chat.id;
     const removeId = match[1];
     const admins = getAdmins();
     if (admins[removeId]) {
       delete admins[removeId];
       saveAdmins(admins);
-      bot.sendMessage(msg.chat.id, `❌ User *${removeId}* removed from admins.`, { parse_mode: "Markdown" });
+      bot.sendMessage(chatId, `❌ Admin \`${removeId}\` removed.`, { parse_mode: "Markdown" }).catch(() => {});
+      log(`Owner ${msg.from.id} removed admin ${removeId}`);
     } else {
-      bot.sendMessage(msg.chat.id, `⚠️ User *${removeId}* is not an admin.`, { parse_mode: "Markdown" });
+      bot.sendMessage(chatId, `⚠️ User \`${removeId}\` is not an admin.`, { parse_mode: "Markdown" }).catch(() => {});
     }
   }));
   
-  // List admins (owner only)
-  bot.onText(/\/list-admins/, ownerOnly(bot, (msg) => {
+  // /list-admins - owner only
+  bot.onText(/^\/list-admins/, ownerOnly(bot, (msg) => {
+    const chatId = msg.chat.id;
     const admins = getAdmins();
-    const adminList = Object.keys(admins).map((id, i) => `${i + 1}. \`${id}\``).join("\n") || "No admins found.";
-    bot.sendMessage(msg.chat.id, `🛡️ *Admin List:*\n\n${adminList}`, { parse_mode: "Markdown" });
+    const list = Object.keys(admins || {}).map((id, idx) => `${idx + 1}. \`${id}\``).join("\n") || "No admins.";
+    bot.sendMessage(chatId, `🛡️ *Admin List*\n\n${list}`, { parse_mode: "Markdown" }).catch(() => {});
   }));
 }
 

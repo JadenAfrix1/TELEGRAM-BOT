@@ -1,3 +1,4 @@
+// src/utils/banner.js
 const BANNER_URL = "https://files.catbox.moe/7qcclf.jpg";
 
 const getBanner = () => {

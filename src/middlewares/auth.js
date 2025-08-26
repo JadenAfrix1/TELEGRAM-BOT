@@ -1,60 +1,65 @@
+// src/middlewares/auth.js
 const { CHANNEL_ID } = process.env;
+const { getBanner } = require("../utils/banner");
 const { log } = require("../utils/logger");
 
-// Banner image (replace with your hosted image URL)
-const BANNER_IMAGE_URL = "https://i.ibb.co/6NRV0fL/nexora-banner.jpg";
-
 /**
- * Middleware to check if a user is a member of a specific channel
- * @param {TelegramBot} bot - Telegram Bot instance
- * @param {Object} msg - Telegram message object
- * @returns {Promise<Boolean>}
+ * Verify whether a user is a member of the required Telegram channel.
  */
 const verifyChannelMembership = async (bot, msg) => {
   const userId = msg.from.id;
-  const chatId = CHANNEL_ID;
-  
+  const chatId = CHANNEL_ID || process.env.CHANNEL_ID || "@nexoratechn";
+
   try {
     const member = await bot.getChatMember(chatId, userId);
-    
-    // If status is “left” or “kicked”, user is not a member
-    if (["left", "kicked"].includes(member.status)) {
-      return false;
-    }
+    if (!member) return false;
+    if (["left", "kicked"].includes(member.status)) return false;
     return true;
   } catch (err) {
-    log(`❌ Failed to verify membership for ${userId}: ${err.message}`);
-    return false; // Treat errors as "not verified"
+    log(`Membership check failed for ${userId}: ${err.message || err}`);
+    return false;
   }
 };
 
 /**
- * Helper function to enforce verification before executing a command
- * @param {TelegramBot} bot
- * @param {Function} callback - Function to execute if verified
+ * Wrapper that ensures the user is a channel member before running the handler.
+ * Sends banner image first (blocked users will get banner + join links).
+ * Preserves original args and passes them to the handler.
  */
-const requireChannelMembership = (bot, callback) => async (msg) => {
-  const isMember = await verifyChannelMembership(bot, msg);
-  
-  if (!isMember) {
-    // First send banner image
-    await bot.sendPhoto(msg.chat.id, BANNER_IMAGE_URL, {
-      caption: "🚫 You cannot use the bot yet. Please join our channels below 👇",
-      reply_markup: {
-        inline_keyboard: [
-          [
-            { text: "Join Telegram Channel", url: `https://t.me/nexoratechn` },
-            { text: "Join WhatsApp Channel", url: `https://chat.whatsapp.com/0029Vb6K4nw96H4LOMaOLF22` },
+const requireChannelMembership = (bot, callback) => async (...args) => {
+  const msg = args[0];
+
+  try {
+    const isMember = await verifyChannelMembership(bot, msg);
+
+    const banner = getBanner();
+
+    if (!isMember) {
+      await bot.sendPhoto(msg.chat.id, banner.photo, {
+        caption:
+          "🚫 You cannot use the bot yet. Please join our channels below and then press /start.",
+        reply_markup: {
+          inline_keyboard: [
+            [
+              { text: "💬 WhatsApp Channel", url: "https://chat.whatsapp.com/0029Vb6K4nw96H4LOMaOLF22" },
+            ],
+            [
+              { text: "📢 Telegram Channel", url: (process.env.TELEGRAM_CHANNEL_URL || `https://t.me/${(CHANNEL_ID||"nexoratechn").toString().replace(/^@/,'')}`) },
+            ],
           ],
-        ],
-      },
-    });
-    return;
+        },
+      });
+      return;
+    }
+
+    // Verified user -> send banner (informational) then run handler
+    await bot.sendPhoto(msg.chat.id, banner.photo, { caption: banner.caption }).catch(()=>{});
+    callback(...args);
+  } catch (err) {
+    log(`requireChannelMembership error: ${err.message || err}`);
+    // fallback message
+    bot.sendMessage(msg.chat.id, "⚠️ An internal error occurred. Try again later.").catch(()=>{});
   }
-  
-  // If verified → show banner then execute command
-  await bot.sendPhoto(msg.chat.id, BANNER_IMAGE_URL);
-  callback(msg);
 };
 
 module.exports = {
